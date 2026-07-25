@@ -1,15 +1,36 @@
+import os
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, MessageHandler, CommandHandler, ContextTypes, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
+
+TOKEN = os.environ.get("8968912026:AAHaqg4BS4c1h5FXP35NYHWETjlLQJ6UIOA")
+
+COUNT_FILE = "count.txt"
 
 
-TOKEN = "8968912026:AAHaqg4BS4c1h5FXP35NYHWETjlLQJ6UIOA"
+def load_count():
+    try:
+        with open(COUNT_FILE, "r") as f:
+            return int(f.read())
+    except:
+        return 0
 
 
-count = 0
+def save_count():
+    with open(COUNT_FILE, "w") as f:
+        f.write(str(count))
+
+
+count = load_count()
 
 
 keyboard = [
-    ["📊 查看总数", "♻️ 清零"]
+    ["📊 查看总数", "🧹 清零"]
 ]
 
 reply_markup = ReplyKeyboardMarkup(
@@ -19,103 +40,57 @@ reply_markup = ReplyKeyboardMarkup(
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     await update.message.reply_text(
-        "✅ 计数机器人启动\n\n"
-        "使用方法：\n"
-        "+数字 = 增加\n"
-        "-数字 = 减少\n\n"
-        "例如：\n"
-        "+100\n"
-        "-50",
+        f"当前总数：{count}",
         reply_markup=reply_markup
     )
 
 
-async def count_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global count
 
     text = update.message.text.strip()
 
-
-    if text.startswith("+") and text[1:].isdigit():
-
-        num = int(text[1:])
-        count += num
-
+    if text == "📊 查看总数":
         await update.message.reply_text(
-            f"➕ 增加：{num}\n"
             f"📊 当前总数：{count}",
             reply_markup=reply_markup
         )
+        return
 
 
-    elif text.startswith("-") and text[1:].isdigit():
-
-        num = int(text[1:])
-        count -= num
+    if text == "🧹 清零":
+        count = 0
+        save_count()
 
         await update.message.reply_text(
-            f"➖ 减少：{num}\n"
-            f"📊 当前总数：{count}",
+            "✅ 已清零\n当前总数：0",
+            reply_markup=reply_markup
+        )
+        return
+
+
+    try:
+        number = int(text)
+
+        count += number
+
+        save_count()
+
+        await update.message.reply_text(
+            f"✅ 已更新\n当前总数：{count}",
             reply_markup=reply_markup
         )
 
+    except:
+        pass
 
-async def show_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text(
-        f"📊 当前总数：{count}",
-        reply_markup=reply_markup
-    )
-
-
-async def reset_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    global count
-
-    count = 0
-
-    await update.message.reply_text(
-        "♻️ 已清零\n📊 当前总数：0",
-        reply_markup=reply_markup
-    )
 
 
 app = Application.builder().token(TOKEN).build()
 
-
-app.add_handler(
-    CommandHandler("start", start)
-)
-
-
-app.add_handler(
-    MessageHandler(
-        filters.Regex("^📊 查看总数$"),
-        show_count
-    )
-)
-
-
-app.add_handler(
-    MessageHandler(
-        filters.Regex("^♻️ 清零$"),
-        reset_count
-    )
-)
-
-
-app.add_handler(
-    MessageHandler(
-        filters.TEXT,
-        count_number
-    )
-)
-
-
-print("机器人运行中...")
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT, message))
 
 
 app.run_polling()
